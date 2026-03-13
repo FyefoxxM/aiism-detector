@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIism Detector — Stop Writing Like a Robot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0e0e;
+    --surface: #161616;
+    --border: #2a2a2a;
+    --text: #e8e0d0;
+    --muted: #666;
+    --accent: #c8a96e;
+    --red: #e05c5c;
+    --red-dim: rgba(224,92,92,0.08);
+    --green: #5ccc8a;
+    --cat-vocab: #c8a96e;
+    --cat-phrase: #7eb8d4;
+    --cat-transition: #b07edd;
+    --cat-cadence: #e08c5c;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header ── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 2rem 2.5rem 1.5rem;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .logo-block h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(1.8rem, 4vw, 2.6rem);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .logo-block h1 em { font-style: italic; color: var(--accent); }
+  .logo-block p {
+    margin-top: 0.4rem;
+    font-size: 0.82rem;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.04em;
+  }
+  .header-meta {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+    text-align: right;
+    line-height: 1.9;
+  }
+  .header-meta a { color: var(--accent); text-decoration: none; }
+  .header-meta a:hover { text-decoration: underline; }
+
+  /* ── Category legend ── */
+  .cat-legend {
+    display: flex;
+    gap: 1.4rem;
+    flex-wrap: wrap;
+    padding: 0.65rem 2.5rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .cat-pill {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+    opacity: 1;
+    transition: opacity 0.15s;
+    user-select: none;
+  }
+  .cat-pill.inactive { opacity: 0.3; }
+  .cat-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* ── Main Layout ── */
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  @media (max-width: 760px) {
+    main { grid-template-columns: 1fr; }
+    header, .cat-legend { padding-left: 1.2rem; padding-right: 1.2rem; }
+  }
+
+  /* ── Pane ── */
+  .pane { display: flex; flex-direction: column; border-right: 1px solid var(--border); }
+  .pane:last-child { border-right: none; }
+  .pane-header {
+    padding: 0.8rem 1.4rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface);
+  }
+  .pane-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .pane-action {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--muted);
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+    letter-spacing: 0.05em;
+  }
+  .pane-action:hover { color: var(--text); }
+
+  /* ── Textarea ── */
+  textarea {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.8rem;
+    line-height: 1.8;
+    padding: 1.4rem;
+    resize: none;
+    min-height: 400px;
+    caret-color: var(--accent);
+  }
+  textarea::placeholder { color: #383838; }
+
+  /* ── Run Bar ── */
+  .run-bar {
+    border-top: 1px solid var(--border);
+    padding: 0.9rem 1.4rem;
+    background: var(--surface);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  #run-btn {
+    background: var(--accent);
+    color: #0e0e0e;
+    border: none;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.55rem 1.3rem;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  #run-btn:hover { opacity: 0.85; }
+  #run-btn:active { opacity: 0.7; }
+  #word-count {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+  }
+  .kbd-hint {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.64rem;
+    color: #3a3a3a;
+    margin-left: auto;
+  }
+
+  /* ── Results ── */
+  #results {
+    flex: 1;
+    padding: 1.4rem;
+    overflow-y: auto;
+    min-height: 400px;
+  }
+  .results-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 280px;
+    gap: 0.6rem;
+    text-align: center;
+  }
+  .results-empty .big {
+    font-family: 'DM Serif Display', serif;
+    font-size: 2.2rem;
+    color: #242424;
+    font-style: italic;
+  }
+  .results-empty p {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    color: #333;
+    letter-spacing: 0.04em;
+  }
+
+  /* ── Summary ── */
+  .summary {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    padding: 0.5rem 0 0.9rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .summary .red { color: var(--red); }
+  .summary .dim { color: var(--muted); }
+
+  /* ── Category tabs in results ── */
+  .cat-counts {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.1rem;
+  }
+  .cat-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.05em;
+    padding: 0.25rem 0.6rem;
+    border: 1px solid;
+    opacity: 0.85;
+  }
+
+  /* ── Flag groups ── */
+  .flag-group {
+    margin-bottom: 1.1rem;
+    border: 1px solid var(--border);
+  }
+  .flag-group-header {
+    padding: 0.5rem 0.8rem;
+    background: var(--red-dim);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .line-preview {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    min-width: 0;
+  }
+  .line-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+  .flag-item {
+    padding: 0.35rem 0.8rem;
+    border-top: 1px solid #1c1c1c;
+    display: flex;
+    align-items: baseline;
+    gap: 0.7rem;
+  }
+  .flag-cat-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .flag-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.66rem;
+    flex-shrink: 0;
+  }
+  .flag-match {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  /* ── Clean ── */
+  .result-clean {
+    text-align: center;
+    padding: 3rem 1rem;
+  }
+  .result-clean em {
+    font-family: 'DM Serif Display', serif;
+    font-size: 2rem;
+    color: var(--green);
+    font-style: italic;
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+  .result-clean p {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+
+  /* ── Breakdown ── */
+  .breakdown {
+    margin-top: 1.4rem;
+    border-top: 1px solid var(--border);
+    padding-top: 1rem;
+  }
+  .breakdown-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.7rem;
+  }
+  .breakdown-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.28rem 0;
+    border-bottom: 1px solid #181818;
+  }
+  .breakdown-row:last-child { border-bottom: none; }
+  .breakdown-name {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--text);
+    min-width: 9rem;
+  }
+  .breakdown-bar-wrap {
+    flex: 1;
+    margin: 0 0.8rem;
+    height: 2px;
+    background: var(--border);
+  }
+  .breakdown-bar { height: 100%; background: var(--accent); }
+  .breakdown-n {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--muted);
+    min-width: 1.5rem;
+    text-align: right;
+  }
+
+  /* ── Roast block ── */
+  .roast-block {
+    border: 1px solid #3a2a1a;
+    background: #1a1208;
+    padding: 1rem 1.1rem 0.9rem;
+    margin-bottom: 1.2rem;
+    position: relative;
+  }
+  .roast-tier {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.45rem;
+    opacity: 0.7;
+  }
+  .roast-text {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.05rem;
+    font-style: italic;
+    line-height: 1.5;
+    color: var(--text);
+  }
+  .roast-sub {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-top: 0.5rem;
+    line-height: 1.6;
+  }
+  .roast-copy-btn {
+    margin-top: 0.8rem;
+    background: none;
+    border: 1px solid #3a2a1a;
+    color: var(--accent);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.35rem 0.8rem;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .roast-copy-btn:hover { background: var(--accent); color: #0e0e0e; }
+  .roast-copy-btn.copied { background: var(--green); color: #0e0e0e; border-color: var(--green); }
+  .roast-share-box {
+    margin-top: 0.75rem;
+    padding: 0.75rem 0.9rem;
+    background: #0a0a0a;
+    border: 1px dashed #3a2a1a;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    line-height: 1.75;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+    cursor: text;
+    user-select: text;
+  }
+
+  /* ── Footer ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 0.8rem 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    background: var(--surface);
+  }
+  footer span {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    color: #383838;
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-block">
+    <h1><em>AIism</em> Detector</h1>
+    <p>// paste your draft. get called out.</p>
+  </div>
+  <div class="header-meta">
+    75+ patterns &nbsp;|&nbsp; 4 categories &nbsp;|&nbsp; runs in your browser<br>
+    built by <a href="https://jdookeran.net" target="_blank">Jason Dookeran</a>
+  </div>
+</header>
+
+<div class="cat-legend" id="cat-legend">
+  <span class="cat-pill" data-cat="vocabulary" onclick="toggleCat(this)">
+    <span class="cat-dot" style="background:var(--cat-vocab)"></span>vocabulary
+  </span>
+  <span class="cat-pill" data-cat="phrase" onclick="toggleCat(this)">
+    <span class="cat-dot" style="background:var(--cat-phrase)"></span>phrases
+  </span>
+  <span class="cat-pill" data-cat="transition" onclick="toggleCat(this)">
+    <span class="cat-dot" style="background:var(--cat-transition)"></span>transitions
+  </span>
+  <span class="cat-pill" data-cat="cadence" onclick="toggleCat(this)">
+    <span class="cat-dot" style="background:var(--cat-cadence)"></span>cadence
+  </span>
+  <span style="font-family:'DM Mono',monospace;font-size:0.65rem;color:#3a3a3a;margin-left:auto;align-self:center;">click to filter</span>
+</div>
+
+<main>
+  <div class="pane">
+    <div class="pane-header">
+      <span class="pane-label">Your Draft</span>
+      <button class="pane-action" onclick="clearAll()">clear</button>
+    </div>
+    <textarea id="input"
+      placeholder="Paste your draft here. Every leveraged, holistic, tapestry-woven journey will be found."
+      spellcheck="false"
+      oninput="updateWordCount()"></textarea>
+    <div class="run-bar">
+      <button id="run-btn" onclick="runDetector()">Run Detector</button>
+      <span id="word-count">0 words</span>
+      <span class="kbd-hint">ctrl+enter</span>
+    </div>
+  </div>
+
+  <div class="pane">
+    <div class="pane-header">
+      <span class="pane-label">Results</span>
+      <span id="results-meta" class="pane-label"></span>
+    </div>
+    <div id="results">
+      <div class="results-empty">
+        <span class="big">Nothing yet.</span>
+        <p>paste your draft and hit run.</p>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <span>Flags patterns associated with AI-generated writing. Not a substitute for editing judgment.</span>
+  <span><a href="https://github.com/jdookeran" target="_blank">github</a> &nbsp;|&nbsp; <a href="https://jdookeran.net" target="_blank">jdookeran.net</a></span>
+</footer>
+
+<script>
+// ── Category config ──────────────────────────────────────────
+const CAT_COLORS = {
+  vocabulary:  "var(--cat-vocab)",
+  phrase:      "var(--cat-phrase)",
+  transition:  "var(--cat-transition)",
+  cadence:     "var(--cat-cadence)",
+};
+
+let activeCats = new Set(["vocabulary","phrase","transition","cadence"]);
+
+function toggleCat(el) {
+  const cat = el.dataset.cat;
+  if (activeCats.has(cat)) {
+    if (activeCats.size === 1) return; // keep at least one
+    activeCats.delete(cat);
+    el.classList.add("inactive");
+  } else {
+    activeCats.add(cat);
+    el.classList.remove("inactive");
+  }
+  rerenderFiltered();
+}
+
+// ── Patterns ─────────────────────────────────────────────────
+const PATTERNS = [
+  // vocabulary - classic
+  ["vocabulary","Em-dash",                /—/g],
+  ["vocabulary","Delve",                  /\bdelve[sd]?\b/gi],
+  ["vocabulary","Leverage",               /\bleverag(e|ing|ed|es)\b/gi],
+  ["vocabulary","Utilize",                /\butilize[sd]?\b/gi],
+  ["vocabulary","Robust",                 /\brobust\b/gi],
+  ["vocabulary","Seamless(ly)",           /\bseamless(ly)?\b/gi],
+  ["vocabulary","Groundbreaking",         /\bgroundbreaking\b/gi],
+  ["vocabulary","Revolutionize",          /\brevolution(ize|ary|izing|ized)\b/gi],
+  ["vocabulary","Transformative",         /\btransformative\b/gi],
+  ["vocabulary","Holistic",               /\bholistic\b/gi],
+  ["vocabulary","Synergy",                /\bsynerg(y|ies|ize|istic)\b/gi],
+  ["vocabulary","Facilitate",             /\bfacilitat(e|ing|ed|ion)\b/gi],
+  ["vocabulary","Paramount",              /\bparamount\b/gi],
+  ["vocabulary","Cutting-edge",           /\bcutting[- ]?edge\b/gi],
+  ["vocabulary","Game-changer",           /\bgame[- ]?changer\b/gi],
+  // vocabulary - current era
+  ["vocabulary","Tapestry",               /\btapestr(y|ies)\b/gi],
+  ["vocabulary","Embark",                 /\bembark(ed|ing|s)?\b/gi],
+  ["vocabulary","Realm",                  /\brealm(s)?\b/gi],
+  ["vocabulary","Beacon",                 /\bbeacon(s)?\b/gi],
+  ["vocabulary","Meticulous(ly)",         /\bmeticulous(ly)?\b/gi],
+  ["vocabulary","Underscore (verb)",      /\bunderscore[sd]?\b/gi],
+  ["vocabulary","Pivotal",                /\bpivotal\b/gi],
+  ["vocabulary","Testament",              /\btestament\b/gi],
+  ["vocabulary","Vibrant",                /\bvibrant(ly)?\b/gi],
+  ["vocabulary","Nuanced",                /\bnuanced?\b/gi],
+  ["vocabulary","Elevate",                /\belevat(e|es|ed|ing)\b/gi],
+  ["vocabulary","Resonate",               /\bresonate?[sd]?\b/gi],
+  ["vocabulary","Foster",                 /\bfoster(s|ed|ing)?\b/gi],
+  ["vocabulary","Showcase",               /\bshowcase[sd]?\b/gi],
+  ["vocabulary","Showcasing",             /\bshowcasing\b/gi],
+  ["vocabulary","Harness",                /\bharness(es|ed|ing)?\b/gi],
+  ["vocabulary","Navigate",               /\bnavigat(e|es|ed|ing)\b/gi],
+  ["vocabulary","Interplay",              /\binterplay\b/gi],
+  ["vocabulary","Multifaceted",           /\bmultifaceted\b/gi],
+  ["vocabulary","Comprehensive",          /\bcomprehensive(ly)?\b/gi],
+  ["vocabulary","Bolstered",              /\bbolster(s|ed|ing)?\b/gi],
+  ["vocabulary","Garner",                 /\bgarner(s|ed|ing)?\b/gi],
+  ["vocabulary","Aligns with",            /\balign(s|ed|ing)? with\b/gi],
+  ["vocabulary","Curated",                /\bcurat(e|es|ed|ing)\b/gi],
+  ["vocabulary","Strive to",              /\bstriv(e|es|ed|ing)\b/gi],
+  ["vocabulary","Reimagine",              /\breimagin(e|es|ed|ing)\b/gi],
+  ["vocabulary","Landscape (metaphor)",   /\blandscape\b/gi],
+  ["vocabulary","Journey (metaphor)",     /\bjourney\b/gi],
+  ["vocabulary","Notably",                /\bnotably\b/gi],
+  ["vocabulary","Ultimately",             /\bultimately\b/gi],
+  ["vocabulary","Crucial",                /\bcrucial(ly)?\b/gi],
+  ["vocabulary","Enhance",                /\benhance[sd]?\b/gi],
+  ["vocabulary","Highlight(ing)",         /\bhighlight(s|ed|ing)?\b/gi],
+  ["vocabulary","Emphasizing",            /\bemphasiz(e|es|ed|ing)\b/gi],
+  ["vocabulary","Enduring",               /\benduring\b/gi],
+  ["vocabulary","Genuinely",              /\bgenuinely\b/gi],
+  ["vocabulary","Straightforward",        /\bstraightforward\b/gi],
+  ["vocabulary","Dive into",              /\bdive[sd]? into\b/gi],
+  ["vocabulary","Unlock",                 /\bunlock(s|ed|ing)?\b/gi],
+  // phrases
+  ["phrase","It's important to note",     /it'?s important to note/gi],
+  ["phrase","It's worth noting",          /it'?s worth noting/gi],
+  ["phrase","It goes without saying",     /it goes without saying/gi],
+  ["phrase","Needless to say",            /needless to say/gi],
+  ["phrase","Generally speaking",         /generally speaking/gi],
+  ["phrase","To put it simply",           /to put it simply/gi],
+  ["phrase","At its core",                /at its core/gi],
+  ["phrase","A key takeaway",             /a key takeaway/gi],
+  ["phrase","This underscores",           /this underscores/gi],
+  ["phrase","In today's X world",         /in today'?s .{0,20} world/gi],
+  ["phrase","Aims to",                    /\baims to\b/gi],
+  ["phrase","Designed to",                /\bdesigned to\b/gi],
+  ["phrase","At the end of the day",      /at the end of the day/gi],
+  ["phrase","In conclusion",              /\bin conclusion\b/gi],
+  ["phrase","In summary",                 /\bin summary\b/gi],
+  ["phrase","Overall (conclusion)",       /^overall[,:]/gim],
+  ["phrase","Touch base",                 /\btouch base\b/gi],
+  ["phrase","Circle back",                /\bcircle back\b/gi],
+  ["phrase","Moving forward",             /\bmoving forward\b/gi],
+  ["phrase","Email finds you well",       /(hope this email|email finds you) (finds you )?well/gi],
+  ["phrase","It's not X, it's Y",         /it'?s not .{0,40}?,? it'?s/gi],
+  ["phrase","Here's the thing",           /here'?s the thing/gi],
+  ["phrase","Let's be honest",            /let'?s be honest/gi],
+  ["phrase","Not just X, but Y",          /not just .{0,40}, but\b/gi],
+  ["phrase","From X to Y (range cliche)", /\bfrom .{3,30} to .{3,30}[,.]/gi],
+  // transitions
+  ["transition","Moreover",               /\bmoreover\b/gi],
+  ["transition","Furthermore",            /\bfurthermore\b/gi],
+  ["transition","Additionally",           /\badditionally\b/gi],
+  ["transition","Consequently",           /\bconsequently\b/gi],
+  ["transition","Thus",                   /\bthus\b/gi],
+  ["transition","Hence",                  /\bhence\b/gi],
+  ["transition","Nonetheless",            /\bnonetheless\b/gi],
+  ["transition","Notwithstanding",        /\bnotwithstanding\b/gi],
+  ["transition","Subsequently",           /\bsubsequently\b/gi],
+  ["transition","In addition",            /\bin addition\b/gi],
+  ["transition","In contrast",            /\bin contrast\b/gi],
+  ["transition","In light of",            /\bin light of\b/gi],
+  // cadence
+  ["cadence","Participial close",         /,\s+(revealing|offering|providing|enabling|allowing|creating|ensuring|highlighting|demonstrating|showcasing|emphasizing|suggesting|indicating)\b/gi],
+];
+
+// ── Structural detectors ─────────────────────────────────────
+function detectBroetry(lines) {
+  const flags = [];
+  let run = [];
+  const flush = () => {
+    if (run.length >= 3) run.forEach(([i,l]) =>
+      flags.push({lineIndex:i, cat:"cadence", label:"Broetry (staccato fragments)", match:l.trim()}));
+    run = [];
+  };
+  lines.forEach((line,i) => {
+    const s = line.trim();
+    const words = s ? s.split(/\s+/).length : 0;
+    if (words >= 1 && words <= 8 && /[.!?]$/.test(s)) run.push([i,line]);
+    else flush();
+  });
+  flush();
+  return flags;
+}
+
+function detectTransitionStacking(lines) {
+  const flags = [];
+  const opener = /^\s*(moreover|furthermore|additionally|consequently|thus|hence|in addition|in contrast|nonetheless|subsequently)\b/i;
+  let run = [];
+  const flush = () => {
+    if (run.length >= 3) run.forEach(([i,l]) =>
+      flags.push({lineIndex:i, cat:"cadence", label:"Transition stacking", match:l.trim().slice(0,40)}));
+    run = [];
+  };
+  lines.forEach((line,i) => {
+    if (opener.test(line)) run.push([i,line]);
+    else if (line.trim()) flush();
+  });
+  flush();
+  return flags;
+}
+
+// ── Core scan ────────────────────────────────────────────────
+let lastScanResult = null;
+
+function scan(text) {
+  const lines = text.split("\n");
+  const grouped = {}; // lineIndex -> {line, flags:[]}
+
+  lines.forEach((line,i) => {
+    PATTERNS.forEach(([cat, label, regex]) => {
+      regex.lastIndex = 0;
+      let m;
+      while ((m = regex.exec(line)) !== null) {
+        if (!grouped[i]) grouped[i] = {line, flags:[]};
+        grouped[i].flags.push({cat, label, match:m[0]});
+        if (!regex.global) break;
+      }
+    });
+  });
+
+  [...detectBroetry(lines), ...detectTransitionStacking(lines)].forEach(({lineIndex,cat,label,match}) => {
+    if (!grouped[lineIndex]) grouped[lineIndex] = {line:lines[lineIndex], flags:[]};
+    grouped[lineIndex].flags.push({cat, label, match});
+  });
+
+  return grouped;
+}
+
+// ── Share text store (avoids embedding strings in onclick attrs) ──
+const shareStore = {};
+let shareStoreId = 0;
+function storeShareText(text) {
+  const id = `s${shareStoreId++}`;
+  shareStore[id] = text;
+  return id;
+}
+
+// ── Roast generator ──────────────────────────────────────────
+const ROAST_TIERS = [
+  { min: 1,  max: 4,  label: "mild warmth",  emoji: "🌡" },
+  { min: 5,  max: 12, label: "medium heat",  emoji: "🔥" },
+  { min: 13, max: 24, label: "well done",    emoji: "💀" },
+  { min: 25, max: Infinity, label: "scorched earth", emoji: "☢" },
+];
+
+// Pattern-specific roast lines, triggered if that label appears in results
+const PATTERN_ROASTS = [
+  { labels: ["Tapestry"],        line: "You wrote 'tapestry.' GPT-3 called. It wants its most embarrassing habit back." },
+  { labels: ["Embark"],          line: "Nobody 'embarks' on anything. They start things. You are not a ship." },
+  { labels: ["Realm"],           line: "'Realm' is for fantasy novels and AI that watched too much Game of Thrones." },
+  { labels: ["Holistic"],        line: "Holistic. The word consultants use when they have nothing specific to say." },
+  { labels: ["Synergy"],         line: "You wrote 'synergy.' A PowerPoint deck somewhere just gained sentience." },
+  { labels: ["Tapestry","Realm","Embark"], line: "This reads like a LinkedIn post written by a medieval ChatGPT. Bold choice." },
+  { labels: ["Leverage"],        line: "You leveraged 'leverage.' The irony is doing real work." },
+  { labels: ["Delve"],           line: "'Delve' is so 2023. Even ChatGPT is embarrassed by it now." },
+  { labels: ["Meticulous(ly)"],  line: "Meticulous. The AI's way of saying 'I did not actually check anything.'" },
+  { labels: ["Pivotal"],         line: "Not everything is pivotal. Some things just happened." },
+  { labels: ["Nuanced"],         line: "'Nuanced' is what you say when you want to sound thoughtful without being specific." },
+  { labels: ["Transformative"],  line: "Transformative. The adult word for 'it was cool, I guess.'" },
+  { labels: ["Robust"],          line: "Robust. Used here to mean: I ran out of adjectives." },
+  { labels: ["Underscore (verb)"], line: "You used 'underscore' as a verb. Your English teacher is filing a complaint." },
+  { labels: ["Testament"],       line: "'A testament to.' A testament to what? Your fondness for filler?" },
+  { labels: ["Broetry (staccato fragments)"], line: "The staccato one-liners. The dramatic pauses. You're not a copywriter. You're a podcast intro." },
+  { labels: ["Transition stacking"], line: "Moreover. Furthermore. Additionally. Consequently. You are not building an argument. You are stacking words." },
+  { labels: ["It's important to note"], line: "'It's important to note' is the verbal equivalent of clearing your throat before saying nothing." },
+  { labels: ["It's worth noting"],   line: "If it's worth noting, note it. Don't announce that you're about to note it." },
+  { labels: ["Moving forward"],      line: "'Moving forward.' As opposed to moving sideways, which is apparently something people do." },
+  { labels: ["In conclusion"],       line: "'In conclusion.' The reader knew you were concluding. The document was ending." },
+  { labels: ["Ultimately"],          line: "Ultimately, 'ultimately' added nothing to this sentence. Ultimately." },
+  { labels: ["Comprehensive"],       line: "Comprehensive. Translation: long. You could have just said long." },
+  { labels: ["Landscape (metaphor)"], line: "The 'landscape' metaphor. The AI's favourite way to avoid describing anything specific." },
+  { labels: ["Journey (metaphor)"],  line: "'Journey.' Your reader is not on a journey. They are reading a document, probably while eating lunch." },
+  { labels: ["Participial close"],   line: "Comma-ing your way into participial phrases, revealing that you learned to write from a content farm." },
+  { labels: ["Email finds you well"], line: "You wrote 'I hope this email finds you well.' The email found me. It was not well." },
+  { labels: ["Notably"],             line: "'Notably' — said by someone who finds everything notable, which means nothing is." },
+];
+
+// Tier-based openers (selected by flag count)
+const TIER_OPENERS = {
+  "mild warmth": [
+    "A few flags. Not bad. Your AI is showing, but just barely.",
+    "Minor AIisms detected. The robot peeked through. Patch it up and you're fine.",
+    "Light contamination. Someone let ChatGPT touch the draft. Fixable.",
+  ],
+  "medium heat": [
+    "This draft was written by a human who has spent too much time reading AI output. It shows.",
+    "The AI didn't write this. But it definitely supervised.",
+    "Somewhere between 'I wrote this' and 'my intern wrote this and the intern is a language model.'",
+    "This reads like a first draft that skipped the part where a human re-reads it.",
+  ],
+  "well done": [
+    "This is not a draft. This is a LinkedIn post that escaped into the wild.",
+    "ChatGPT wrote half of this. The other half was the prompt.",
+    "The AI was clearly doing its best. So was the human, apparently. Neither succeeded.",
+    "This draft has more AIisms than a GPT-4 demo reel. Impressive, in a bad way.",
+  ],
+  "scorched earth": [
+    "This is not a document. This is a training dataset.",
+    "I've seen GPT output that reads more human than this. And I mean that clinically.",
+    "This draft has achieved something rare: it reads like an AI trying to write like an AI trying to write like a human.",
+    "Holistic. Tapestry. Embark. Realm. Meticulous. You owe everyone who reads this an apology.",
+  ],
+};
+
+function generateRoast(allFlags, total) {
+  // Pick tier
+  const tier = ROAST_TIERS.find(t => total >= t.min && total <= t.max) || ROAST_TIERS[0];
+
+  // Pick opener
+  const openers = TIER_OPENERS[tier.label];
+  const opener = openers[Math.floor(Math.random() * openers.length)];
+
+  // Find matching pattern roasts (check if any of the labels appear in flags)
+  const flagLabels = new Set(allFlags.map(f => f.label));
+  const matched = PATTERN_ROASTS.filter(r => r.labels.every(l => flagLabels.has(l)));
+
+  // Pick up to 2 pattern-specific roast lines
+  const picks = matched.sort(() => 0.5 - Math.random()).slice(0, 2).map(r => r.line);
+
+  return { tier, opener, picks };
+}
+
+function roastShareText(opener, picks, total) {
+  const lines = [
+    `I ran my draft through the AIism Detector.`,
+    `${total} flags.`,
+    ``,
+    `The verdict:`,
+    `"${opener}"`,
+  ];
+  if (picks.length) {
+    lines.push(``);
+    picks.forEach(p => lines.push(`"${p}"`));
+  }
+  lines.push(``);
+  lines.push(`Check your own drafts: jdookeran.github.io/aiism-detector`);
+  return lines.join("\n");
+}
+
+// ── Render ───────────────────────────────────────────────────
+function esc(s) {
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function catColor(cat) { return CAT_COLORS[cat] || "#888"; }
+
+function buildResults(grouped, filterCats) {
+  // Apply category filter
+  const filtered = {};
+  Object.entries(grouped).forEach(([idx, {line, flags}]) => {
+    const f = flags.filter(f => filterCats.has(f.cat));
+    if (f.length) filtered[idx] = {line, flags:f};
+  });
+
+  const allFlags = Object.values(filtered).flatMap(g => g.flags);
+  const lineCount = Object.keys(filtered).length;
+  const total = allFlags.length;
+
+  if (total === 0) {
+    if (Object.keys(grouped).length === 0) {
+      return `<div class="result-clean"><em>Suspiciously clean.</em><p>No AIisms detected. Either you're good or the list needs updating.</p></div>`;
+    }
+    return `<div class="result-clean"><em>Filtered out.</em><p>All flags are in hidden categories. Toggle a category above to see results.</p></div>`;
+  }
+
+  // Category counts
+  const catCounts = {};
+  allFlags.forEach(f => catCounts[f.cat] = (catCounts[f.cat]||0)+1);
+
+  let html = `<div class="summary">
+    <span class="red">${total} flag${total!==1?"s":""}</span>
+    <span class="dim">across ${lineCount} line${lineCount!==1?"s":""}</span>
+  </div>`;
+
+  html += `<div class="cat-counts">`;
+  Object.entries(catCounts).sort((a,b)=>b[1]-a[1]).forEach(([cat,n]) => {
+    html += `<span class="cat-badge" style="color:${catColor(cat)};border-color:${catColor(cat)}20">
+      ${esc(cat)} &nbsp;${n}
+    </span>`;
+  });
+  html += `</div>`;
+
+  // Roast block
+  const { tier, opener, picks } = generateRoast(allFlags, total);
+  const shareText = roastShareText(opener, picks, total);
+  const shareId = storeShareText(shareText);
+  html += `<div class="roast-block">
+    <div class="roast-tier">${tier.emoji} ${tier.label}</div>
+    <div class="roast-text">${esc(opener)}</div>`;
+  if (picks.length) {
+    html += `<div class="roast-sub">`;
+    picks.forEach(p => { html += `${esc(p)}<br>`; });
+    html += `</div>`;
+  }
+  html += `<button class="roast-copy-btn" onclick="toggleShareText(this,'${shareId}')">share this &darr;</button>
+  <div class="roast-share-box" id="share-${shareId}" style="display:none"></div>
+  </div>`;
+
+  Object.entries(filtered).sort((a,b)=>Number(a[0])-Number(b[0])).forEach(([idx,{line,flags}]) => {
+    const ln = Number(idx)+1;
+    const preview = esc(line.trim()).slice(0,88) + (line.trim().length>88?"…":"");
+    html += `<div class="flag-group">
+      <div class="flag-group-header">
+        <span class="line-preview">${preview}</span>
+        <span class="line-num">L${ln}</span>
+      </div>`;
+    flags.forEach(({cat,label,match}) => {
+      html += `<div class="flag-item">
+        <span class="flag-cat-dot" style="background:${catColor(cat)}"></span>
+        <span class="flag-label" style="color:${catColor(cat)}">${esc(label)}</span>
+        <span class="flag-match">"${esc(match.trim())}"</span>
+      </div>`;
+    });
+    html += `</div>`;
+  });
+
+  // Breakdown
+  const breakdown = Object.values(filtered).flatMap(g=>g.flags).reduce((acc,f)=>{
+    acc[f.label]=(acc[f.label]||0)+1; return acc;
+  }, {});
+  const sorted = Object.entries(breakdown).sort((a,b)=>b[1]-a[1]);
+  const max = sorted[0][1];
+  html += `<div class="breakdown"><div class="breakdown-title">Pattern breakdown</div>`;
+  sorted.forEach(([label,count]) => {
+    const pct = Math.round((count/max)*100);
+    html += `<div class="breakdown-row">
+      <span class="breakdown-name">${esc(label)}</span>
+      <div class="breakdown-bar-wrap"><div class="breakdown-bar" style="width:${pct}%"></div></div>
+      <span class="breakdown-n">${count}</span>
+    </div>`;
+  });
+  html += `</div>`;
+
+  return html;
+}
+
+function runDetector() {
+  const text = document.getElementById("input").value.trim();
+  const resultsEl = document.getElementById("results");
+  const metaEl = document.getElementById("results-meta");
+
+  if (!text) {
+    resultsEl.innerHTML = `<div class="results-empty"><span class="big">No draft.</span><p>paste something first.</p></div>`;
+    metaEl.textContent = "";
+    lastScanResult = null;
+    return;
+  }
+
+  lastScanResult = scan(text);
+  const html = buildResults(lastScanResult, activeCats);
+  resultsEl.innerHTML = html;
+
+  const total = Object.values(lastScanResult).flatMap(g=>g.flags).filter(f=>activeCats.has(f.cat)).length;
+  metaEl.textContent = total > 0 ? `${total} flags` : "clean";
+}
+
+function rerenderFiltered() {
+  if (!lastScanResult) return;
+  const resultsEl = document.getElementById("results");
+  const metaEl = document.getElementById("results-meta");
+  const html = buildResults(lastScanResult, activeCats);
+  resultsEl.innerHTML = html;
+  const total = Object.values(lastScanResult).flatMap(g=>g.flags).filter(f=>activeCats.has(f.cat)).length;
+  metaEl.textContent = total > 0 ? `${total} flags` : "clean";
+}
+
+function toggleShareText(btn, id) {
+  const text = shareStore[id];
+  if (!text) return;
+  const box = document.getElementById('share-' + id);
+  if (box.style.display === 'none') {
+    box.textContent = text;
+    box.style.display = 'block';
+    // Select all text so they can just ctrl+c
+    const range = document.createRange();
+    range.selectNodeContents(box);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    btn.textContent = 'hide ↑';
+  } else {
+    box.style.display = 'none';
+    window.getSelection().removeAllRanges();
+    btn.textContent = 'share this ↓';
+  }
+}
+
+function updateWordCount() {
+  const text = document.getElementById("input").value.trim();
+  const words = text ? text.split(/\s+/).filter(Boolean).length : 0;
+  document.getElementById("word-count").textContent = `${words.toLocaleString()} word${words!==1?"s":""}`;
+}
+
+function clearAll() {
+  document.getElementById("input").value = "";
+  document.getElementById("results").innerHTML = `<div class="results-empty"><span class="big">Nothing yet.</span><p>paste your draft and hit run.</p></div>`;
+  document.getElementById("results-meta").textContent = "";
+  document.getElementById("word-count").textContent = "0 words";
+  lastScanResult = null;
+}
+
+document.addEventListener("keydown", e => {
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) runDetector();
+});
+</script>
+</body>
+</html>
